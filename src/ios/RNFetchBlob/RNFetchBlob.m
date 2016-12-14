@@ -178,7 +178,7 @@ RCT_EXPORT_METHOD(writeStream:(NSString *)path withEncoding:(NSString *)encoding
     NSFileManager * fm = [NSFileManager defaultManager];
     BOOL isDir = nil;
     BOOL exist = [fm fileExistsAtPath:path isDirectory:&isDir];
-    if( exist == NO || isDir == YES) {
+    if( /* exist == NO || */ isDir == YES) {
         callback(@[[NSString stringWithFormat:@"target path `%@` may not exists or it's a folder", path]]);
         return;
     }
