@@ -11,8 +11,13 @@
 #import "RNFetchBlobNetwork.h"
 #import "RNFetchBlobConst.h"
 #import "RNFetchBlobFS.h"
-#import "RCTLog.h"
 #import "IOS7Polyfill.h"
+
+#if __has_include(<React/RCTAssert.h>)
+#import <React/RCTLog.h>
+#else
+#import "RCTLog.h"
+#endif
 
 @interface RNFetchBlobReqBuilder()
 {
@@ -34,7 +39,7 @@
 {
     //    NSString * encodedUrl = [url stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
     NSString * encodedUrl = url;
-    
+
     // send request
     __block NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString: encodedUrl]];
     __block NSMutableDictionary *mheaders = [[NSMutableDictionary alloc] initWithDictionary:[RNFetchBlobNetwork normalizeHeaders:headers]];
@@ -54,8 +59,8 @@
                 [request setHTTPBody:postData];
             }
             // set content-length
-            [mheaders setValue:[NSString stringWithFormat:@"%d",[postData length]] forKey:@"Content-Length"];
-            [mheaders setValue:[NSString stringWithFormat:@"100-continue",[postData length]] forKey:@"Expect"];
+            [mheaders setValue:[NSString stringWithFormat:@"%lu",[postData length]] forKey:@"Content-Length"];
+            [mheaders setValue:@"100-continue" forKey:@"Expect"];
             // appaned boundary to content-type
             [mheaders setValue:[NSString stringWithFormat:@"multipart/form-data; charset=utf-8; boundary=%@", boundary] forKey:@"content-type"];
             [request setHTTPMethod: method];
@@ -97,7 +102,7 @@
                 {
                     [mheaders setValue:@"application/octet-stream" forKey:@"Content-Type"];
                 }
-                
+
                 // when body is a string contains file path prefix, try load file from the path
                 if([body hasPrefix:FILE_PREFIX]) {
                     __block NSString * orgPath = [body substringFromIndex:[FILE_PREFIX length]];
@@ -125,7 +130,7 @@
                 }
                 // otherwise convert it as BASE64 data string
                 else {
-                    
+
                     __block NSString * cType = [[self class]getHeaderIgnoreCases:@"content-type" fromHeaders:mheaders];
                     // when content-type is application/octet* decode body string using BASE64 decoder
                     if([[cType lowercaseString] hasPrefix:@"application/octet"] || [[cType lowercaseString] RNFBContainsString:@";base64"])
@@ -176,12 +181,12 @@
             {
                 i++;
                 getFieldData([form objectAtIndex:i]);
-                RCTLogWarn(@"RNFetchBlob multipart request builder has found a field without `data` or `name` property, the field will be removed implicitly.", field);
+                RCTLogWarn(@"RNFetchBlob multipart request builder has found a field without `data` or `name` property, the field will be removed implicitly.");
                 return;
             }
             contentType = contentType == nil ? @"application/octet-stream" : contentType;
             // field is a text field
-            if([field valueForKey:@"filename"] == nil || content == [NSNull null]) {
+            if([field valueForKey:@"filename"] == nil || content == nil) {
                 [formData appendData:[[NSString stringWithFormat:@"--%@\r\n", boundary] dataUsingEncoding:NSUTF8StringEncoding]];
                 [formData appendData:[[NSString stringWithFormat:@"Content-Disposition: form-data; name=\"%@\"\r\n", name] dataUsingEncoding:NSUTF8StringEncoding]];
                 [formData appendData:[[NSString stringWithFormat:@"Content-Type: text/plain\r\n\r\n"] dataUsingEncoding:NSUTF8StringEncoding]];
@@ -247,15 +252,15 @@
     }
 }
 
-+(NSString *) getHeaderIgnoreCases:(NSString *)field fromHeaders:(NSMutableArray *) headers {
-    
++(NSString *) getHeaderIgnoreCases:(NSString *)field fromHeaders:(NSMutableDictionary *) headers {
+
     NSString * normalCase = [headers valueForKey:field];
     NSString * ignoredCase = [headers valueForKey:[field lowercaseString]];
     if( normalCase != nil)
         return normalCase;
     else
         return ignoredCase;
-    
+
 }
 
 

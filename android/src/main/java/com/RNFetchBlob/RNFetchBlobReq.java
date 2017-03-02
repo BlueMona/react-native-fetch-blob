@@ -362,7 +362,8 @@ public class RNFetchBlobReq extends BroadcastReceiver implements Runnable {
 
             clientBuilder.connectionPool(pool);
             clientBuilder.retryOnConnectionFailure(false);
-            clientBuilder.followRedirects(true);
+            clientBuilder.followRedirects(options.followRedirect);
+            clientBuilder.followSslRedirects(options.followRedirect);
 
 
             OkHttpClient client = clientBuilder.retryOnConnectionFailure(true).build();
@@ -499,11 +500,32 @@ public class RNFetchBlobReq extends BroadcastReceiver implements Runnable {
                     // It uses customized response body which is able to report download progress
                     // and write response data to destination path.
                     resp.body().bytes();
+
                 } catch (Exception ignored) {
 //                    ignored.printStackTrace();
                 }
                 this.destPath = this.destPath.replace("?append=true", "");
-                callback.invoke(null, RNFetchBlobConst.RNFB_RESPONSE_PATH, this.destPath);
+
+                try {
+                    long expectedLength = resp.body().contentLength();
+                    // when response contains Content-Length, check if the stream length is correct
+                    if(expectedLength > 0) {
+                        long actualLength = new File(this.destPath).length();
+                        if(actualLength != expectedLength) {
+                            callback.invoke("RNFetchBlob failed to write data to storage : expected " + expectedLength + " bytes but got " + actualLength + " bytes", null);
+                        }
+                        else {
+                            callback.invoke(null, RNFetchBlobConst.RNFB_RESPONSE_PATH, this.destPath);
+                        }
+                    }
+                    else {
+                        callback.invoke(null, RNFetchBlobConst.RNFB_RESPONSE_PATH, this.destPath);
+                    }
+                }
+                catch (Exception err) {
+                    callback.invoke(err.getMessage());
+                    err.printStackTrace();
+                }
                 break;
             default:
                 try {
@@ -513,7 +535,7 @@ public class RNFetchBlobReq extends BroadcastReceiver implements Runnable {
                 }
                 break;
         }
-        if(!resp.isSuccessful())
+//        if(!resp.isSuccessful())
             resp.body().close();
         releaseTaskResource();
     }
